@@ -1,0 +1,209 @@
+{
+    "title": "AI in the Work Place",
+    "description": "Thank you for participating. Your responses help shape our research.",
+    "logoPosition": "right",
+    "pages": [
+        {
+            "name": "page_welcome",
+            "title": "Welcome",
+            "description": "This survey takes approximately 10–12 minutes. Your responses are confidential.",
+            "elements": [
+                {
+                    "type": "html",
+                    "name": "welcome_text",
+                    "html": "<div class='pew-welcome'><h2>About This Survey</h2><p>Pew Research Center is a nonpartisan fact tank. This survey explores public attitudes on technology and society. A conversational AI assistant may ask a brief follow-up question to better understand your views — it will not influence your responses.</p></div>"
+                }
+            ]
+        },
+        {
+            "name": "page_demographics",
+            "title": "About You",
+            "description": "These questions help us understand who is responding.",
+            "elements": [
+                {
+                    "type": "radiogroup",
+                    "name": "age_group",
+                    "title": "What is your age group?",
+                    "isRequired": true,
+                    "choices": [
+                        "18–24",
+                        "25–34",
+                        "35–44",
+                        "45–54",
+                        "55–64",
+                        "65 or older",
+                        "Prefer not to say"
+                    ]
+                },
+                {
+                    "type": "radiogroup",
+                    "name": "education",
+                    "title": "What is the highest level of education you have completed?",
+                    "isRequired": true,
+                    "choices": [
+                        "Less than high school",
+                        "High school diploma or GED",
+                        "Some college, no degree",
+                        "Associate's degree",
+                        "Bachelor's degree",
+                        "Graduate or professional degree",
+                        "Prefer not to say"
+                    ]
+                },
+                {
+                    "type": "radiogroup",
+                    "name": "region",
+                    "title": "Which region of the United States do you live in?",
+                    "isRequired": true,
+                    "choices": [
+                        "Northeast",
+                        "Midwest",
+                        "South",
+                        "West",
+                        "Outside the U.S.",
+                        "Prefer not to say"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "page_tech_attitudes",
+            "title": "Technology & Society",
+            "description": "Please rate your level of agreement with the following statements.",
+            "elements": [
+                {
+                    "type": "matrix",
+                    "name": "tech_attitudes_matrix",
+                    "title": "How much do you agree or disagree with each of the following?",
+                    "isRequired": true,
+                    "columns": [
+                        {
+                            "value": "strongly_agree",
+                            "text": "Strongly Agree"
+                        },
+                        {
+                            "value": "somewhat_agree",
+                            "text": "Somewhat Agree"
+                        },
+                        {
+                            "value": "neither",
+                            "text": "Neither"
+                        },
+                        {
+                            "value": "somewhat_disagree",
+                            "text": "Somewhat Disagree"
+                        },
+                        {
+                            "value": "strongly_disagree",
+                            "text": "Strongly Disagree"
+                        }
+                    ],
+                    "rows": [
+                        {
+                            "value": "ai_beneficial",
+                            "text": "Artificial intelligence will be mostly beneficial to society."
+                        },
+                        {
+                            "value": "data_privacy",
+                            "text": "I am concerned about how companies use my personal data."
+                        },
+                        {
+                            "value": "social_media_harm",
+                            "text": "Social media is causing more harm than good in society."
+                        },
+                        {
+                            "value": "tech_governs",
+                            "text": "Governments should do more to regulate technology companies."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "page_open_ai",
+            "title": "Your Views on AI",
+            "elements": [
+                {
+                    "type": "comment",
+                    "name": "ai_open_response",
+                    "title": "In your own words, how do you think artificial intelligence will change day-to-day life over the next 10 years?",
+                    "description": "There are no right or wrong answers. Please share your genuine thoughts.",
+                    "isRequired": true,
+                    "rows": 5,
+                    "placeholder": "Type your response here...",
+                    "pew_ai_probe": true
+                }
+            ]
+        },
+        {
+            "name": "page_trust",
+            "title": "Trust in Institutions",
+            "elements": [
+                {
+                    "type": "rating",
+                    "name": "trust_media",
+                    "title": "How much do you trust national news media to report accurately?",
+                    "isRequired": true,
+                    "rateMin": 1,
+                    "rateMax": 5,
+                    "minRateDescription": "No trust at all",
+                    "maxRateDescription": "A great deal of trust"
+                },
+                {
+                    "type": "rating",
+                    "name": "trust_govt",
+                    "title": "How much do you trust the federal government to act in the public interest?",
+                    "isRequired": true,
+                    "rateMin": 1,
+                    "rateMax": 5,
+                    "minRateDescription": "No trust at all",
+                    "maxRateDescription": "A great deal of trust"
+                },
+                {
+                    "type": "rating",
+                    "name": "trust_science",
+                    "title": "How much do you trust scientists and researchers to provide accurate information?",
+                    "isRequired": true,
+                    "rateMin": 1,
+                    "rateMax": 5,
+                    "minRateDescription": "No trust at all",
+                    "maxRateDescription": "A great deal of trust"
+                }
+            ]
+        },
+        {
+            "name": "page_open_concerns",
+            "title": "Your Concerns",
+            "elements": [
+                {
+                    "type": "comment",
+                    "name": "concerns_open_response",
+                    "title": "What concerns you most about where technology is heading in the next five years?",
+                    "description": "Please be as specific as you like.",
+                    "isRequired": false,
+                    "rows": 5,
+                    "placeholder": "Type your response here...",
+                    "pew_ai_probe": true
+                }
+            ]
+        },
+        {
+            "name": "page_final",
+            "title": "Final Thoughts",
+            "elements": [
+                {
+                    "type": "comment",
+                    "name": "anything_else",
+                    "title": "Is there anything else you'd like to share about technology and society that this survey didn't ask?",
+                    "isRequired": false,
+                    "rows": 4,
+                    "placeholder": "Optional — share any additional thoughts here..."
+                }
+            ]
+        }
+    ],
+    "showProgressBar": "top",
+    "progressBarType": "pages",
+    "showQuestionNumbers": "off",
+    "completedHtml": "<div class='pew-complete'><h2>Thank you for completing our survey.</h2></div>"
+}

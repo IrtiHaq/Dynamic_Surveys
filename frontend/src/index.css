@@ -1,0 +1,345 @@
+:root {
+  /* Pew Brand Colors: Black, White, and subtle grays */
+  --pew-black: #111111;
+  --pew-white: #ffffff;
+  --pew-gray-100: #f8f9fa;
+  --pew-gray-200: #e9ecef;
+  --pew-gray-300: #dee2e6;
+  --pew-gray-600: #6c757d;
+  --pew-gray-800: #343a40;
+  
+  --color-primary: var(--pew-black);
+  --color-surface: var(--pew-white);
+  --color-background: var(--pew-gray-100);
+  --color-text: var(--pew-black);
+  --color-text-muted: var(--pew-gray-600);
+  --color-border: var(--pew-gray-300);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--color-text);
+  background-color: var(--color-background);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography elements */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+/* App Layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 1rem 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.header-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-content h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.5px;
+}
+
+.logo {
+  text-decoration: none;
+  color: inherit;
+}
+
+.header-nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.header-nav a {
+  text-decoration: none;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  transition: color 0.2s ease;
+}
+
+.header-nav a:hover {
+  color: var(--color-primary);
+}
+
+.app-main {
+  flex: 1;
+  max-width: 1000px;
+  width: 100%;
+  margin: 2rem auto;
+  padding: 0 2rem;
+}
+
+.app-footer {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+/* SurveyJS Override - Modern Theme customized to Black & White */
+.sd-root-modern {
+  --sd-base-color: var(--pew-black) !important;
+  --sd-primary: var(--pew-black) !important;
+  --sd-secondary: var(--pew-black) !important;
+  --sd-background: var(--pew-white) !important;
+  --sd-background-dim: var(--pew-gray-100) !important;
+  --sd-border: var(--pew-gray-300) !important;
+  --sd-border-light: var(--pew-gray-200) !important;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.sd-btn {
+  border-radius: 4px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* Custom Pew HTML elements */
+.pew-welcome, .pew-complete {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.pew-welcome h2 {
+  font-size: 2rem;
+}
+
+/* Admin Panel */
+.admin-panel {
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.admin-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-section:last-child {
+  border-bottom: none;
+}
+
+.admin-section h2 {
+  font-size: 1.25rem;
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.1);
+}
+
+.radio-group {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-surface);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* AI Probing Chat UI */
+.ai-probing-container {
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ai-header {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ai-badge {
+  background: var(--color-text-muted);
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
+.chat-history {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.chat-message {
+  padding: 1rem;
+  border-radius: 8px;
+  max-width: 85%;
+}
+
+.chat-message.user {
+  background-color: var(--color-background);
+  align-self: flex-end;
+  border: 1px solid var(--color-border);
+}
+
+.chat-message.ai {
+  background-color: #f0f7ff;
+  align-self: flex-start;
+  border: 1px solid #cce3ff;
+}
+
+.chat-message.ai p {
+  margin: 0;
+}
+
+.chat-message .sender {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reply-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.reply-container label {
+  font-weight: 500;
+}
+
+.reply-container textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+  resize: vertical;
+}
+
+.reply-container textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-background);
+}
+
+.loading-indicator {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
