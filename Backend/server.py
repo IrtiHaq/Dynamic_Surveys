@@ -25,6 +25,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     probe: str
     safe_input: str
+    is_complete: bool = False
 
 class SurveySubmission(BaseModel):
     data: Dict[str, Any]
@@ -59,6 +60,15 @@ async def generate_probe(request: ChatRequest):
         # 1. Anonymize user input according to compliance mode
         safe_input = anonymize_text(request.message, compliance_mode=request.compliance_mode)
         
+        # Check if we should stop probing (max 2 AI probes for this question)
+        ai_probes_count = sum(1 for msg in request.chat_history if msg.role in ("ai", "AIMessage"))
+        if ai_probes_count >= 2:
+            return ChatResponse(
+                probe="",
+                safe_input=safe_input,
+                is_complete=True
+            )
+            
         # 2. Build dynamic LLM based on request settings
         llm = ChatOpenAI(
             base_url="http://localhost:1234/v1",
@@ -69,15 +79,25 @@ async def generate_probe(request: ChatRequest):
         )
         
         # 3. Build the LangChain message history
-        # Always start with the system prompt, including the question context if available
         sys_msg = (
             "You are a neutral, professional survey moderator for the Pew Research Center. "
-            "Your ONLY task is to ask exactly ONE brief, clarifying follow-up question based on the respondent's answer. "
+            "Your task is to evaluate if the respondent's answer makes their overall response complete, and if not, ask exactly ONE brief, clarifying follow-up question. "
+            "A complete open-ended survey or interview response provides detailed, context-rich, and relevant information in the respondent's own words, going beyond 'yes/no' to explain the why and how behind their perspective. "
+            "\n\nKey Elements of a Complete Response:\n"
+            "- Topical Relevance (Directness): explicitly addresses the core subject of the prompt.\n"
+            "- Explanatory Depth (The 'Why'): provides the underlying rationale, containing at least one supporting reason or causal link.\n"
+            "- Clarity and Unambiguity: the statement must be internally consistent.\n"
+            "\nExamples of Complete Responses:\n"
+            "1. [Q: Would you be comfortable with an AI tool being used to screen loan applications by banks, or not?\n"
+            "A: As a software engineer, I wouldn't be comfortable with AI unilaterally screening loan applications because I know firsthand that models are only as good as their training data...]\n"
+            "2. [Q: Do you think oil and gas companies should or shouldn't be held legally responsible for the costs of natural disasters linked to climate change?\n"
+            "A: I absolutely believe oil and gas companies must be held legally responsible for climate-related disasters, especially since living in Seattle means watching our summers get increasingly choked by wildfire smoke...]\n\n"
             "CRITICAL RULES: \n"
-            "1. NEVER say 'Okay, I understand' or 'Please provide the text'.\n"
-            "2. DO NOT introduce yourself or say hello.\n"
-            "3. DO NOT validate their opinion (do not say 'That's interesting' or 'I see').\n"
-            "4. Your response must ONLY be the question itself. The next user message you receive IS their answer, respond immediately with the probe."
+            "1. You MUST respond ONLY with a valid JSON object. Do not include markdown formatting, backticks, or conversational text.\n"
+            "2. The JSON object must have exactly these keys: {\"is_complete\": boolean, \"probe\": \"string\"}\n"
+            "3. If is_complete is true, make the probe an empty string.\n"
+            "4. Briefly and neutrally acknowledge their specific answer before asking the follow-up (e.g., 'Thank you for sharing that. You mentioned [topic]...'). Do not validate their opinion (do not say 'That's a good point'). DO NOT introduce yourself.\n"
+            "5. The probe must ONLY be the acknowledgment and the question itself."
         )
         if request.question_context:
             sys_msg += f"\n\nContext: The original survey question was: '{request.question_context}'"
@@ -94,13 +114,89 @@ async def generate_probe(request: ChatRequest):
         # Append the current safe user message
         messages.append(HumanMessage(content=safe_input))
         
-        # 4. Invoke LLM
-        print(f"Generating probe for safe_input: '{safe_input}' using {request.model_name}")
-        response = llm.invoke(messages)
+        # 4. Invoke LLM with retry loop for bias check
+        max_attempts = 2
+        final_probe = ""
+        is_complete = False
+        
+        for attempt in range(max_attempts):
+            print(f"Generating probe (attempt {attempt + 1}) for safe_input: '{safe_input}' using {request.model_name}")
+            response = llm.invoke(messages)
+            
+            # Parse JSON using regex to find the first JSON object
+            import re
+            content = response.content.strip()
+            
+            # Try to extract just the JSON part if the model hallucinated extra text
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            
+            try:
+                if json_match:
+                    json_str = json_match.group(0)
+                    parsed = json.loads(json_str)
+                else:
+                    # Fallback if no {} found, try cleaning backticks anyway
+                    clean_content = content.replace("```json", "").replace("```", "").strip()
+                    parsed = json.loads(clean_content)
+                    
+                is_complete = parsed.get("is_complete", False)
+                final_probe = parsed.get("probe", "").strip()
+            except Exception as e:
+                print(f"JSON parsing failed: {e}. Raw content: {content}")
+                is_complete = False
+                final_probe = "Could you elaborate on that?"
+                
+            if is_complete or not final_probe:
+                is_complete = True
+                final_probe = ""
+                break
+                
+            # Bias Check
+            bias_sys_msg = (
+                "You are an objective bias reviewer. Analyze the following generated survey probe: \n\n"
+                f"\"{final_probe}\"\n\n"
+                "Does this contain leading language, bias, or assumptions? A leading question suggests a particular answer or contains the interviewer's opinion. "
+                "Respond ONLY with a valid JSON object with a single boolean key: {\"is_leading\": true/false}. Do not include any other text."
+            )
+            bias_llm = ChatOpenAI(
+                base_url="http://localhost:1234/v1",
+                api_key="lm-studio",
+                model=request.model_name,
+                temperature=0.0,
+                max_tokens=50
+            )
+            bias_response = bias_llm.invoke([SystemMessage(content=bias_sys_msg)])
+            bias_content = bias_response.content.strip()
+            
+            bias_match = re.search(r'\{.*\}', bias_content, re.DOTALL)
+            is_leading = False
+            try:
+                if bias_match:
+                    bias_parsed = json.loads(bias_match.group(0))
+                else:
+                    clean_bias = bias_content.replace("```json", "").replace("```", "").strip()
+                    bias_parsed = json.loads(clean_bias)
+                is_leading = bias_parsed.get("is_leading", False)
+            except:
+                print(f"Bias Check JSON parsing failed. Raw: {bias_content}")
+                
+            if not is_leading:
+                break
+            else:
+                print(f"Probe flagged as leading: {final_probe}")
+                if attempt < max_attempts - 1:
+                    messages.append(AIMessage(content=response.content))
+                    messages.append(HumanMessage(content="That probe was flagged as leading or biased. Please regenerate a completely neutral clarifying question. Ensure it evaluates the user's response objectively and doesn't assume their stance, output only the JSON object."))
+                else:
+                    # Fallback to restating original question
+                    fallback_context = request.question_context if request.question_context else "your previous statement"
+                    final_probe = f"Could you elaborate on your answer regarding: '{fallback_context}'?"
+                    break
         
         return ChatResponse(
-            probe=response.content,
-            safe_input=safe_input
+            probe=final_probe,
+            safe_input=safe_input,
+            is_complete=is_complete
         )
         
     except Exception as e:

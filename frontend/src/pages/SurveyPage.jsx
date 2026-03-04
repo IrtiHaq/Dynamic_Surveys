@@ -22,6 +22,7 @@ export default function SurveyPage() {
         chatHistory: [],
         pageIdToReturnTo: null
     });
+    const [isChecking, setIsChecking] = useState(false);
 
     const settings = getSettings();
 
@@ -84,10 +85,9 @@ export default function SurveyPage() {
     }, [settings.enableProbing]);
 
     const startProbing = async (question, surveyInstance) => {
+        setIsChecking(true);
         setProbingState(prev => ({
             ...prev,
-            active: true,
-            loading: true,
             originalQuestionTitle: question.title,
             originalQuestionName: question.name,
             originalAnswer: question.value,
@@ -102,8 +102,18 @@ export default function SurveyPage() {
             question.title
         );
 
+        if (apiResponse.is_complete) {
+            // The response was complete enough! Skip probing.
+            surveyInstance.setValue(question.name + '_probe_completed', true);
+            setIsChecking(false);
+            surveyInstance.nextPage();
+            return;
+        }
+
+        setIsChecking(false);
         setProbingState(prev => ({
             ...prev,
+            active: true,
             loading: false,
             aiProbe: apiResponse.probe,
             chatHistory: [
@@ -128,32 +138,65 @@ export default function SurveyPage() {
             { role: 'user', content: probingState.userReply }
         ];
 
-        // For this POC, we just do 1 single follow-up probe and then continue the survey immediately.
-        // So we append the reply to the survey data, hide probing, and move to next page.
+        // Send the updated conversation back to the AI
+        const apiResponse = await generateProbe(
+            probingState.originalAnswer, // backend doesn't care much since chat_history has the real new reply
+            newChatHistory,
+            settings,
+            probingState.originalQuestionTitle
+        );
 
-        // Save the probing conversation into the survey data payload
-        const finalConversation = [...newChatHistory];
-        const probingDataKey = `probe_for_${probingState.originalQuestionName}`;
-        surveyModel.setValue(probingDataKey, finalConversation);
+        if (apiResponse.is_complete) {
+            // AI is satisfied or max limit hit! End the probing session.
 
-        // Mark this question as specifically probed so we don't infinite-loop on this page
-        surveyModel.setValue(probingState.originalQuestionName + '_probe_completed', true);
+            // Save the probing conversation into the survey data payload
+            const probingDataKey = `probe_for_${probingState.originalQuestionName}`;
+            surveyModel.setValue(probingDataKey, newChatHistory);
 
+            // Mark this question as specifically probed so we don't infinite-loop on this page
+            surveyModel.setValue(probingState.originalQuestionName + '_probe_completed', true);
+
+            setProbingState(prev => ({
+                ...prev,
+                active: false,
+                loading: false,
+                aiProbe: '',
+                userReply: '',
+                chatHistory: []
+            }));
+
+            // Force navigation to the next page now that probing is done
+            surveyModel.nextPage();
+            return;
+        }
+
+        // Otherwise, show the user the NEXT probe and let them reply again
         setProbingState(prev => ({
             ...prev,
-            active: false,
             loading: false,
-            aiProbe: '',
+            aiProbe: apiResponse.probe,
             userReply: '',
-            chatHistory: []
+            chatHistory: [
+                ...newChatHistory,
+                { role: 'ai', content: apiResponse.probe }
+            ]
         }));
-
-        // Force navigation to the next page now that probing is done
-        surveyModel.nextPage();
     };
 
     return (
-        <div className="survey-container">
+        <div className="survey-container" style={{ position: 'relative' }}>
+            {isChecking && (
+                <div style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(255,255,255,0.8)', zIndex: 10,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexDirection: 'column'
+                }}>
+                    <div className="loading-spinner" style={{ marginBottom: '1rem', border: '4px solid #f3f3f3', borderTop: '4px solid #3498db', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite' }}></div>
+                    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                    <p style={{ fontWeight: 'bold' }}>Analyzing response...</p>
+                </div>
+            )}
             {!probingState.active ? (
                 surveyModel && <Survey model={surveyModel} />
             ) : (
@@ -167,21 +210,32 @@ export default function SurveyPage() {
                     </div>
 
                     <div className="chat-history">
-                        {/* Context: remind user what they just said */}
+                        {/* Context: remind user what they just said originally */}
                         <div className="chat-message user" style={{ opacity: 0.7 }}>
-                            <div className="sender">Your previous answer</div>
+                            <div className="sender">Your original answer</div>
                             <p>"{probingState.originalAnswer}"</p>
                         </div>
 
-                        {/* AI Probe */}
-                        {probingState.loading && !probingState.aiProbe ? (
+                        {/* Render all subsequent back-and-forth dynamically */}
+                        {probingState.chatHistory.map((msg, index) => {
+                            // The very first msg is just originalAnswer re-sent to AI, skip it here visually 
+                            // to avoid duplicating the "Your original answer" block above.
+                            if (index === 0 && msg.role === 'user') return null;
+
+                            return (
+                                <div key={index} className={`chat-message ${msg.role === 'ai' ? 'ai' : 'user'}`}>
+                                    <div className="sender">
+                                        {msg.role === 'ai' ? 'Survey Assistant' : 'You'}
+                                    </div>
+                                    <p>{msg.content}</p>
+                                </div>
+                            );
+                        })}
+
+                        {/* Loading State for NEXT AI Probe */}
+                        {probingState.loading && (
                             <div className="loading-indicator">
                                 Generating follow-up question...
-                            </div>
-                        ) : (
-                            <div className="chat-message ai">
-                                <div className="sender">Survey Assistant</div>
-                                <p>{probingState.aiProbe}</p>
                             </div>
                         )}
                     </div>
