@@ -1,4 +1,4 @@
-# Dynamic Surveys: Agentic Probing Bot
+# Dynamic Surveys: Agentic Probing Bots
 
 A Proof of Concept (PoC) for an AI-powered survey platform designed to improve the quality of open-ended survey responses. By transforming static questionnaires into interactive conversations, this system acts as a neutral survey moderator that evaluates respondent answers in real-time and asks clarifying follow-up questions to gather rich, qualitative data.
 
