@@ -25,3 +25,29 @@ A Proof of Concept (PoC) for an AI-powered survey platform designed to improve t
 **AI & Model Serving:**
 * LM Studio (Local AI server)
 * Target Model: `gemma-3n-e4b`
+
+**Responsible AI Guardrails:**
+This project specifically addresses the risks associated with using Generative AI in survey data collection:
+* **Consent & Privacy:** Users interact with an overt AI moderator. Data is anonymized via Presidio before prompt generation.
+* **Neutrality:** An LLM-as-a-judge system intercepts the primary model's output and blocks any questions that contain leading language or assumptions about the user's opinions.
+* **Determinism:** The models run at a low temperature (0.1) to ensure stable, predictable logic flow rather than creative text generation.
+
+**Core API Endpoints**
+* **POST /api/chat:** Takes a user's survey response and chat history, applies PII redaction based on the requested compliance mode, and returns either a dynamic follow-up probe or a completion flag.
+* **POST /api/submit:** Flattens the final survey data (including chat/probe history) and appends it to a local responses.csv file.
+* **POST /api/warmup:** Pings LM Studio to load the LLM into VRAM so it is ready for the first survey respondent.
+
+**Project Structure**
+```text
+├── Backend/
+│   ├── server.py             # FastAPI entry point and endpoint definitions
+│   └── Basic_chatbot.py      # Core LangChain logic, bias checking, and PII redaction
+├── frontend/
+│   ├── src/                  # React components, SurveyJS configuration, and API hooks
+│   ├── package.json          # Node dependencies and Vite scripts
+│   └── index.html            # Web entry point
+├── Response Data/
+│   └── responses.csv         # Local storage for finalized survey submissions
+├── start_all.sh              # Concurrent startup script for development
+└── requirements.txt          # Python environment dependencies
+```
