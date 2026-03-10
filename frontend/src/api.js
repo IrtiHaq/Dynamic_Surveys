@@ -15,7 +15,7 @@ export async function generateProbe(message, chatHistory = [], settings = {}, qu
             body: JSON.stringify({
                 message,
                 compliance_mode: settings.complianceMode || 'Standard',
-                model_name: settings.modelName || 'gemma-3n-e4b',
+                model_name: settings.modelName || 'google/gemma-3n-e4b',
                 temperature: parseFloat(settings.temperature) || 0.1,
                 max_tokens: parseInt(settings.maxTokens) || 150,
                 question_context: questionContext,
@@ -68,13 +68,40 @@ export async function submitSurvey(data) {
 }
 
 /**
+ * Sends a message to the backend to get a factual clarification based on the FAQ.
+ */
+export async function askClarification(message) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/clarify`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error asking for clarification:", error);
+        return {
+            definition: "Sorry, I am currently unable to answer clarification questions."
+        };
+    }
+}
+
+/**
  * Persists Survey Team Settings
  */
 export function getSettings() {
     const defaultSettings = {
         enableProbing: true,
         complianceMode: 'Standard',
-        modelName: 'gemma-3n-e4b',
+        modelName: 'google/gemma-3n-e4b',
         temperature: 0.1,
         maxTokens: 150
     };

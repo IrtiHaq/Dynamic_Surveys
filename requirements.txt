@@ -101,6 +101,8 @@ requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
 rich==14.3.3
 rpds-py==0.30.0
+scikit-learn==1.8.0
+sentence-transformers==5.2.3
 setuptools==82.0.0
 shellingham==1.5.4
 six==1.17.0

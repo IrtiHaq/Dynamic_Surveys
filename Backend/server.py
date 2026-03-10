@@ -17,7 +17,7 @@ class ChatRequest(BaseModel):
     message: str
     compliance_mode: str = "Standard"
     chat_history: List[ChatMessage] = []
-    model_name: str = "gemma-3n-e4b"
+    model_name: str = "google/gemma-3n-e4b"
     temperature: float = 0.1
     max_tokens: int = 150
     question_context: str = ""
@@ -29,6 +29,12 @@ class ChatResponse(BaseModel):
 
 class SurveySubmission(BaseModel):
     data: Dict[str, Any]
+
+class ClarifyRequest(BaseModel):
+    message: str
+
+class ClarifyResponse(BaseModel):
+    definition: str
 
 # Import the existing functionality from Basic_chatbot.py
 try:
@@ -87,16 +93,23 @@ async def generate_probe(request: ChatRequest):
             "- Topical Relevance (Directness): explicitly addresses the core subject of the prompt.\n"
             "- Explanatory Depth (The 'Why'): provides the underlying rationale, containing at least one supporting reason or causal link.\n"
             "- Clarity and Unambiguity: the statement must be internally consistent.\n"
+            "\nCRITICAL RULE FOR FOLLOW-UP ANSWERS:\n"
+            "- If the user has already been asked a follow-up question and their reply directly addresses that follow-up (e.g. they stated which specific jobs they mean, or provided a short reason), you MUST classify the response as complete (`is_complete: true`). Do NOT ask a second follow-up question unless their reply is complete gibberish or extremely evasive.\n"
             "\nExamples of Complete Responses:\n"
             "1. [Q: Would you be comfortable with an AI tool being used to screen loan applications by banks, or not?\n"
             "A: As a software engineer, I wouldn't be comfortable with AI unilaterally screening loan applications because I know firsthand that models are only as good as their training data...]\n"
             "2. [Q: Do you think oil and gas companies should or shouldn't be held legally responsible for the costs of natural disasters linked to climate change?\n"
-            "A: I absolutely believe oil and gas companies must be held legally responsible for climate-related disasters, especially since living in Seattle means watching our summers get increasingly choked by wildfire smoke...]\n\n"
+            "A: I absolutely believe oil and gas companies must be held legally responsible for climate-related disasters, especially since living in Seattle means watching our summers get increasingly choked by wildfire smoke...]\n"
+            "3. [Q: What concerns you most about technology in the next 5 years?\n"
+            "A: It will take away jobs.\n"
+            "AI: Thank you. Which types of jobs are you most concerned about and why?\n"
+            "A: It will automate and take away factory jobs.\n"
+            "AI (INTERNAL LOGIC): The user provided a specific example of jobs. It is complete.]\n\n"
             "CRITICAL RULES: \n"
             "1. You MUST respond ONLY with a valid JSON object. Do not include markdown formatting, backticks, or conversational text.\n"
             "2. The JSON object must have exactly these keys: {\"is_complete\": boolean, \"probe\": \"string\"}\n"
             "3. If is_complete is true, make the probe an empty string.\n"
-            "4. Briefly and neutrally acknowledge their specific answer before asking the follow-up (e.g., 'Thank you for sharing that. You mentioned [topic]...'). Do not validate their opinion (do not say 'That's a good point'). DO NOT introduce yourself.\n"
+            "4. If and only if is_complete is false, briefly and neutrally acknowledge their specific answer before asking the follow-up (e.g., 'Thank you for sharing that. You mentioned [topic]...'). Do not validate their opinion (do not say 'That's a good point'). DO NOT introduce yourself.\n"
             "5. The probe must ONLY be the acknowledgment and the question itself."
         )
         if request.question_context:
@@ -151,34 +164,56 @@ async def generate_probe(request: ChatRequest):
                 final_probe = ""
                 break
                 
-            # Bias Check
-            bias_sys_msg = (
-                "You are an objective bias reviewer. Analyze the following generated survey probe: \n\n"
-                f"\"{final_probe}\"\n\n"
-                "Does this contain leading language, bias, or assumptions? A leading question suggests a particular answer or contains the interviewer's opinion. "
-                "Respond ONLY with a valid JSON object with a single boolean key: {\"is_leading\": true/false}. Do not include any other text."
-            )
-            bias_llm = ChatOpenAI(
-                base_url="http://localhost:1234/v1",
-                api_key="lm-studio",
-                model=request.model_name,
-                temperature=0.0,
-                max_tokens=50
-            )
-            bias_response = bias_llm.invoke([SystemMessage(content=bias_sys_msg)])
-            bias_content = bias_response.content.strip()
-            
-            bias_match = re.search(r'\{.*\}', bias_content, re.DOTALL)
+            # RAG Bias Check Optimization
             is_leading = False
-            try:
-                if bias_match:
-                    bias_parsed = json.loads(bias_match.group(0))
-                else:
-                    clean_bias = bias_content.replace("```json", "").replace("```", "").strip()
-                    bias_parsed = json.loads(clean_bias)
-                is_leading = bias_parsed.get("is_leading", False)
-            except:
-                print(f"Bias Check JSON parsing failed. Raw: {bias_content}")
+            from Basic_chatbot import build_questions_index
+            from sklearn.metrics.pairwise import cosine_similarity
+            import numpy as np
+            
+            questions, q_embeddings = build_questions_index()
+            should_run_llm_check = True
+            
+            if questions and len(q_embeddings) > 0:
+                from Basic_chatbot import load_local_embeddings
+                model = load_local_embeddings()
+                probe_embedding = model.encode([final_probe])
+                
+                similarities = cosine_similarity(probe_embedding, q_embeddings)[0]
+                max_sim = np.max(similarities)
+                
+                if max_sim > 0.8:
+                    print(f"Cosine similarity high ({max_sim:.2f}), bypassing LLM bias check.")
+                    is_leading = False
+                    should_run_llm_check = False
+                    
+            if should_run_llm_check:
+                # Bias Check
+                bias_sys_msg = (
+                    "You are an objective bias reviewer. Analyze the following generated survey probe: \n\n"
+                    f"\"{final_probe}\"\n\n"
+                    "Does this contain leading language, bias, or assumptions? A leading question suggests a particular answer or contains the interviewer's opinion. "
+                    "Respond ONLY with a valid JSON object with a single boolean key: {\"is_leading\": true/false}. Do not include any other text."
+                )
+                bias_llm = ChatOpenAI(
+                    base_url="http://localhost:1234/v1",
+                    api_key="lm-studio",
+                    model="mistralai/ministral-3-3b",
+                    temperature=0.0,
+                    max_tokens=50
+                )
+                bias_response = bias_llm.invoke([SystemMessage(content=bias_sys_msg)])
+                bias_content = bias_response.content.strip()
+                
+                bias_match = re.search(r'\{.*\}', bias_content, re.DOTALL)
+                try:
+                    if bias_match:
+                        bias_parsed = json.loads(bias_match.group(0))
+                    else:
+                        clean_bias = bias_content.replace("```json", "").replace("```", "").strip()
+                        bias_parsed = json.loads(clean_bias)
+                    is_leading = bias_parsed.get("is_leading", False)
+                except:
+                    print(f"Bias Check JSON parsing failed. Raw: {bias_content}")
                 
             if not is_leading:
                 break
@@ -207,6 +242,65 @@ async def generate_probe(request: ChatRequest):
 @app.get("/api/settings")
 async def get_settings():
     return {"status": "ok", "message": "Settings saved in browser localStorage for PoC"}
+
+@app.post("/api/clarify", response_model=ClarifyResponse)
+async def clarify_term(request: ClarifyRequest):
+    try:
+        from Basic_chatbot import load_local_embeddings
+        from sklearn.metrics.pairwise import cosine_similarity
+        import numpy as np
+        
+        model = load_local_embeddings()
+        
+        faq_path = os.path.join(os.path.dirname(__file__), "survey_faq.json")
+        with open(faq_path, 'r', encoding='utf-8') as f:
+            faq_data = json.load(f)
+            
+        definitions = faq_data.get("definitions", [])
+        if not definitions:
+            return ClarifyResponse(definition="I'm sorry, I don't have any definitions available.")
+            
+        # Get embeddings for definitions terms+text
+        texts_to_embed = [item["term"] + ": " + item["definition"] for item in definitions]
+        faq_embeddings = model.encode(texts_to_embed)
+        
+        query_embedding = model.encode([request.message])
+        similarities = cosine_similarity(query_embedding, faq_embeddings)[0]
+        
+        best_idx = np.argmax(similarities)
+        best_score = similarities[best_idx]
+        
+        if best_score > 0.3: # Threshold to match terms
+            best_def = definitions[best_idx]
+            context = f"Retrieved Survey Policy Definition: \nTerm: {best_def['term']}\nDefinition: {best_def['definition']}\n\nYou MUST strictly use the definition above."
+        else:
+            context = "No specific survey policy definition found in the glossary. You may answer using your own general knowledge if the user is asking a basic dictionary definition or general technology question. If the question is entirely irrelevant to surveys, technology, or demographics, politely decline."
+            
+        llm = ChatOpenAI(
+            base_url="http://localhost:1234/v1",
+            api_key="lm-studio",
+            model="google/gemma-3n-e4b",
+            temperature=0.2, # slightly higher temp to allow general answers
+            max_tokens=150
+        )
+        
+        sys_msg = (
+            "You are a helpful, neutral clarifying assistant for a Pew Research survey. "
+            "If a 'Retrieved Survey Policy Definition' is provided below, you MUST use it to answer the user's question. "
+            "If no retrieved definition is provided, you may provide a brief, objective dictionary-style definition of general terms from your own knowledge, as long as they are somewhat relevant to technology, government, or data."
+        )
+        
+        messages = [
+            SystemMessage(content=sys_msg + f"\n\nContext:\n{context}"),
+            HumanMessage(content=request.message)
+        ]
+        
+        response = llm.invoke(messages)
+        return ClarifyResponse(definition=response.content.strip())
+        
+    except Exception as e:
+        print(f"Error in clarification: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/warmup")
 async def warmup_model():

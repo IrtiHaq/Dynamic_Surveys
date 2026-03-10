@@ -1,0 +1,48 @@
+{
+    "definitions": [
+        {
+            "term": "Artificial Intelligence (AI)",
+            "definition": "Computer systems able to perform tasks that normally require human intelligence, such as visual perception, speech recognition, decision-making, and translation between languages."
+        },
+        {
+            "term": "Generative AI",
+            "definition": "A specific type of artificial intelligence capable of creating new content, such as text, images, or audio, by learning patterns from existing data (e.g., ChatGPT or DALL-E)."
+        },
+        {
+            "term": "Regulation",
+            "definition": "In the context of technology, regulation refers to rules or laws established by governments or international bodies to oversee how technology companies operate, handle data, and develop new tools."
+        },
+        {
+            "term": "Federal Government",
+            "definition": "The national government of the United States, which includes the Executive Branch (the President), the Legislative Branch (Congress), and the Judicial Branch (Supreme Court). It is responsible for creating and enforcing national laws, including those that regulate technology and commerce."
+        },
+        {
+            "term": "Automation",
+            "definition": "The use of technology, software, or robotics to perform tasks previously done by humans. In the workplace, this can range from assembly line robots to software that processes loan applications."
+        },
+        {
+            "term": "Open-ended response",
+            "definition": "A survey question that allows respondents to answer in their own words, rather than selecting from a predetermined list of options."
+        },
+        {
+            "term": "Bias",
+            "definition": "A disproportionate weight in favor of or against an idea or thing, usually in a way that is closed-minded, prejudicial, or unfair. In AI, this often refers to models producing prejudiced results due to their training data."
+        },
+        {
+            "term": "Data Privacy",
+            "definition": "The branch of data security concerned with the proper handling of data – consent, notice, and regulatory obligations. Specifically, whether personal information is shared with third parties or used for targeted advertising without explicit permission."
+        },
+        {
+            "term": "GDPR (General Data Protection Regulation)",
+            "definition": "A comprehensive data privacy and security law enacted by the European Union (EU) in 2018. It requires companies to clearly disclose data collection, provides users with the 'right to be forgotten', and levies heavy fines against organizations that mishandle personal data."
+        },
+        {
+            "term": "HIPAA (Health Insurance Portability and Accountability Act)",
+            "definition": "A US federal law that establishes national standards for the protection of individuals' medical records and other personal health information."
+        }
+    ],
+    "guidelines": {
+        "assistant_persona": "You are a helpful, neutral clarifying assistant for a Pew Research survey.",
+        "instructions": "When a respondent asks a question about the survey or specific terms, retrieve the most relevant definition from the 'definitions' list above. Provide ONLY the definition in a neutral, objective tone. Do NOT provide your own opinions, do NOT hallucinate definitions outside of this document, and do NOT engage in conversation beyond answering the specific question about the term."
+    }
+}

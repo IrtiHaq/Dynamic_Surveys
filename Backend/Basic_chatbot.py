@@ -3,8 +3,39 @@ import json
 from functools import lru_cache
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+import csv
 
 # PII Redaction Setup
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def load_local_embeddings():
+    from sentence_transformers import SentenceTransformer
+    print("Loading Local Embedding Model... (This only happens once)")
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    return model
+
+@lru_cache(maxsize=1)
+def build_questions_index():
+    print("Building Question Embeddings Index...")
+    model = load_local_embeddings()
+    csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "survey_questions.csv")
+    questions = []
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                q_text = row.get('Question Text')
+                if q_text:
+                    questions.append(q_text)
+        if questions:
+            embeddings = model.encode(questions, convert_to_tensor=False)
+            return questions, embeddings
+        return [], []
+    except Exception as e:
+        print(f"Error loading survey_questions.csv: {e}")
+        return [], []
+
 from functools import lru_cache
 
 # PII Redaction 
@@ -87,7 +118,6 @@ llm = ChatOpenAI(
     max_tokens=150
 )
 
-# Initialize the conversation with the strict system prompt
 sys_msg = (
     "You are a neutral, professional survey moderator for the Pew Research Center. "
     "Your task is to evaluate if the respondent's answer makes their overall response complete, and if not, ask exactly ONE brief, clarifying follow-up question. "
@@ -96,16 +126,23 @@ sys_msg = (
     "- Topical Relevance (Directness): explicitly addresses the core subject of the prompt.\n"
     "- Explanatory Depth (The 'Why'): provides the underlying rationale, containing at least one supporting reason or causal link.\n"
     "- Clarity and Unambiguity: the statement must be internally consistent.\n"
+    "\nCRITICAL RULE FOR FOLLOW-UP ANSWERS:\n"
+    "- If the user has already been asked a follow-up question and their reply directly addresses that follow-up (e.g. they stated which specific jobs they mean, or provided a short reason), you MUST classify the response as complete (`is_complete: true`). Do NOT ask a second follow-up question unless their reply is complete gibberish or extremely evasive.\n"
     "\nExamples of Complete Responses:\n"
     "1. [Q: Would you be comfortable with an AI tool being used to screen loan applications by banks, or not?\n"
     "A: As a software engineer, I wouldn't be comfortable with AI unilaterally screening loan applications because I know firsthand that models are only as good as their training data...]\n"
     "2. [Q: Do you think oil and gas companies should or shouldn't be held legally responsible for the costs of natural disasters linked to climate change?\n"
-    "A: I absolutely believe oil and gas companies must be held legally responsible for climate-related disasters, especially since living in Seattle means watching our summers get increasingly choked by wildfire smoke...]\n\n"
+    "A: I absolutely believe oil and gas companies must be held legally responsible for climate-related disasters, especially since living in Seattle means watching our summers get increasingly choked by wildfire smoke...]\n"
+    "3. [Q: What concerns you most about technology in the next 5 years?\n"
+    "A: It will take away jobs.\n"
+    "AI: Thank you. Which types of jobs are you most concerned about and why?\n"
+    "A: It will automate and take away factory jobs.\n"
+    "AI (INTERNAL LOGIC): The user provided a specific example of jobs. It is complete.]\n\n"
     "CRITICAL RULES: \n"
     "1. You MUST respond ONLY with a valid JSON object. Do not include markdown formatting, backticks, or conversational text.\n"
     "2. The JSON object must have exactly these keys: {\"is_complete\": boolean, \"probe\": \"string\"}\n"
     "3. If is_complete is true, make the probe an empty string.\n"
-    "4. Briefly and neutrally acknowledge their specific answer before asking the follow-up (e.g., 'Thank you for sharing that. You mentioned [topic]...'). Do not validate their opinion (do not say 'That's a good point'). DO NOT introduce yourself.\n"
+    "4. If and only if is_complete is false, briefly and neutrally acknowledge their specific answer before asking the follow-up (e.g., 'Thank you for sharing that. You mentioned [topic]...'). Do not validate their opinion (do not say 'That's a good point'). DO NOT introduce yourself.\n"
     "5. The probe must ONLY be the acknowledgment and the question itself."
 )
 

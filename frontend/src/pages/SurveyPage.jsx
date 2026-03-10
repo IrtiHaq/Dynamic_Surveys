@@ -7,10 +7,16 @@ import { Survey } from 'survey-react-ui';
 import 'survey-core/survey-core.min.css';
 
 import surveyJson from '../survey_definition.json';
-import { generateProbe, getSettings, warmupModel, submitSurvey } from '../api';
+import { generateProbe, getSettings, warmupModel, submitSurvey, askClarification } from '../api';
 
 export default function SurveyPage() {
     const [surveyModel, setSurveyModel] = useState(null);
+    const [clarificationState, setClarificationState] = useState({
+        isOpen: false,
+        message: '',
+        loading: false,
+        history: []
+    });
     const [probingState, setProbingState] = useState({
         active: false,
         originalQuestionTitle: '',
@@ -183,6 +189,35 @@ export default function SurveyPage() {
         }));
     };
 
+    const toggleClarification = () => {
+        setClarificationState(prev => ({ ...prev, isOpen: !prev.isOpen }));
+    };
+
+    const handleClarificationChange = (e) => {
+        setClarificationState(prev => ({ ...prev, message: e.target.value }));
+    };
+
+    const submitClarification = async (e) => {
+        e.preventDefault();
+        if (!clarificationState.message.trim() || clarificationState.loading) return;
+
+        const userMsg = clarificationState.message;
+        setClarificationState(prev => ({
+            ...prev,
+            message: '',
+            loading: true,
+            history: [...prev.history, { role: 'user', content: userMsg }]
+        }));
+
+        const response = await askClarification(userMsg);
+
+        setClarificationState(prev => ({
+            ...prev,
+            loading: false,
+            history: [...prev.history, { role: 'ai', content: response.definition }]
+        }));
+    };
+
     return (
         <div className="survey-container" style={{ position: 'relative' }}>
             {isChecking && (
@@ -264,6 +299,98 @@ export default function SurveyPage() {
                     )}
                 </div>
             )}
+
+            {/* Floating Clarification Assistant */}
+            <div className="clarification-widget" style={{
+                position: 'fixed',
+                bottom: '20px',
+                right: '20px',
+                zIndex: 1000,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end'
+            }}>
+                {clarificationState.isOpen && (
+                    <div style={{
+                        width: '320px',
+                        height: '420px',
+                        backgroundColor: 'var(--pew-white, #fff)',
+                        border: '1px solid var(--pew-gray-300, #ccc)',
+                        borderRadius: '12px',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                        marginBottom: '15px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{ backgroundColor: 'var(--pew-black, #000)', color: 'white', padding: '12px 16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.95rem' }}>Ask for Clarification</span>
+                            <button onClick={toggleClarification} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}>&times;</button>
+                        </div>
+                        <div style={{ flex: 1, padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {clarificationState.history.length === 0 && (
+                                <p style={{ fontSize: '0.9rem', color: '#666', textAlign: 'center', marginTop: '30px' }}>
+                                    Need help with a term like <b>Regulation</b> or <b>Bias</b> Ask the Clarification Assistant
+                                </p>
+                            )}
+                            {clarificationState.history.map((msg, idx) => (
+                                <div key={idx} style={{
+                                    alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                    backgroundColor: msg.role === 'user' ? '#e6f2ff' : '#f1f1f1',
+                                    color: msg.role === 'user' ? '#004085' : '#333',
+                                    padding: '10px 14px',
+                                    borderRadius: '16px',
+                                    borderBottomRightRadius: msg.role === 'user' ? '4px' : '16px',
+                                    borderBottomLeftRadius: msg.role === 'ai' ? '4px' : '16px',
+                                    maxWidth: '85%',
+                                    fontSize: '0.9rem',
+                                    lineHeight: '1.4'
+                                }}>
+                                    {/* Simple markdown-like bolding for definitions if "**Term**:" exists */}
+                                    {msg.content.split('**').map((part, i) => i % 2 !== 0 ? <b key={i}>{part}</b> : part)}
+                                </div>
+                            ))}
+                            {clarificationState.loading && (
+                                <div style={{ alignSelf: 'flex-start', fontSize: '0.85rem', fontStyle: 'italic', color: '#888', padding: '5px' }}>
+                                    Searching FAQ...
+                                </div>
+                            )}
+                        </div>
+                        <form onSubmit={submitClarification} style={{ display: 'flex', borderTop: '1px solid #eaeaea', backgroundColor: '#fafafa' }}>
+                            <input
+                                type="text"
+                                value={clarificationState.message}
+                                onChange={handleClarificationChange}
+                                placeholder="E.g. What does API mean?"
+                                style={{ flex: 1, border: 'none', padding: '14px', outline: 'none', fontSize: '0.95rem', backgroundColor: 'transparent' }}
+                            />
+                            <button type="submit" disabled={clarificationState.loading} style={{ background: 'none', border: 'none', padding: '0 16px', cursor: 'pointer', color: '#0066cc', fontWeight: 'bold', fontSize: '0.95rem' }}>Send</button>
+                        </form>
+                    </div>
+                )}
+                {!clarificationState.isOpen && (
+                    <button onClick={toggleClarification} style={{
+                        backgroundColor: 'var(--pew-black, #000)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '24px',
+                        padding: '12px 20px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '0.95rem',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                        transition: 'transform 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }}
+                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
+                        <span style={{ fontSize: '1.2rem', lineHeight: '1' }}>?</span> Ask for Clarification
+                    </button>
+                )}
+            </div>
         </div>
     );
 }
