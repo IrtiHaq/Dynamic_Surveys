@@ -34,7 +34,9 @@ export default function SurveyPage() {
 
     useEffect(() => {
         // Pre-warm the LLM so it's ready when the user gets to the open responses
-        if (settings.enableProbing) {
+        // Only do this once per page load to avoid spamming LM Studio
+        if (settings.enableProbing && !window.__vram_prewarmed) {
+            window.__vram_prewarmed = true;
             warmupModel();
         }
 

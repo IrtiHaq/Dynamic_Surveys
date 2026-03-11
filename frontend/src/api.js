@@ -44,7 +44,14 @@ export async function generateProbe(message, chatHistory = [], settings = {}, qu
  */
 export async function warmupModel() {
     try {
-        fetch(`${API_BASE_URL}/warmup`, { method: 'POST' }).catch(() => { });
+        const settings = getSettings();
+        fetch(`${API_BASE_URL}/warmup`, { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ model_name: settings.modelName || 'google/gemma-3n-e4b' })
+        }).catch(() => { });
     } catch (err) {
         // silently fail
     }
@@ -107,7 +114,16 @@ export function getSettings() {
     };
 
     const saved = localStorage.getItem('pew_survey_settings');
-    return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+    if (!saved) return defaultSettings;
+    
+    // Auto-fix stale cached model names
+    const parsed = JSON.parse(saved);
+    if (parsed.modelName === 'gemma-3n-e4b') {
+        parsed.modelName = 'google/gemma-3n-e4b';
+        saveSettings(parsed); // Re-persist the fixed version
+    }
+    
+    return { ...defaultSettings, ...parsed };
 }
 
 export function saveSettings(settings) {

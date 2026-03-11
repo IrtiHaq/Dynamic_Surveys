@@ -5,7 +5,7 @@ export default function AdminPage() {
     const [settings, setSettings] = useState({
         enableProbing: true,
         complianceMode: 'Standard',
-        modelName: 'gemma-3n-e4b',
+        modelName: 'google/gemma-3n-e4b',
         temperature: 0.1,
         maxTokens: 150
     });

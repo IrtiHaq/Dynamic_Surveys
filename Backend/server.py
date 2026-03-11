@@ -302,16 +302,47 @@ async def clarify_term(request: ClarifyRequest):
         print(f"Error in clarification: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class WarmupRequest(BaseModel):
+    model_name: str = "google/gemma-3n-e4b"
+
 @app.post("/api/warmup")
-async def warmup_model():
-    """Sends a tiny request to LM Studio to load the model into VRAM so it's ready."""
+async def warmup_model(request: Optional[WarmupRequest] = None):
+    """Sends a request to LM Studio to explicitly load the models and optionally ping them."""
     try:
-        print("Pre-warming LM Studio model...")
-        # Since we decoupled, we just build a generic Chat OpenAI to hit the endpoint
-        from langchain_openai import ChatOpenAI
-        warmup_llm = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", max_tokens=1)
-        warmup_llm.invoke([SystemMessage(content="Respond with 'OK'")])
-        return {"status": "warmed_up"}
+        main_model_name = request.model_name if request else "google/gemma-3n-e4b"
+        bias_model_name = "mistralai/ministral-3-3b"
+        models_to_load = [main_model_name, bias_model_name]
+        
+        # 1. Explicitly ask LM Studio to load the models
+        import urllib.request
+        import urllib.error
+        
+        url = "http://localhost:1234/api/v1/models/load"
+        
+        for model_name in models_to_load:
+            print(f"Pre-warming LM Studio model ({model_name})...")
+            # We rely on the frontend warmup-once fix to avoid duplicates
+            data = json.dumps({
+                "model": model_name
+            }).encode('utf-8')
+            req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'}, method='POST')
+            
+            try:
+                with urllib.request.urlopen(req) as response:
+                    load_resp = json.loads(response.read().decode('utf-8'))
+                    print(f"Model load response for {model_name}: {load_resp}")
+            except urllib.error.URLError as e:
+                print(f"Warning: Failed to load model {model_name} via explicit API: {e}. LM Studio might be busy or using a different API version.")
+
+            # 2. Invoke a tiny request to ensure it's fully pre-warmed in VRAM
+            from langchain_openai import ChatOpenAI
+            warmup_llm = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model=model_name, max_tokens=1)
+            try:
+                warmup_llm.invoke([SystemMessage(content="Respond with 'OK'")])
+            except Exception as e:
+                print(f"Failed to ping {model_name}: {e}")
+                
+        return {"status": "warmed_up", "models": models_to_load}
     except Exception as e:
         print(f"Warmup failed: {e}")
         return {"status": "failed", "error": str(e)}

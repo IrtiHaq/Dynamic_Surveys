@@ -230,7 +230,7 @@ def main():
                 bias_llm = ChatOpenAI(
                     base_url="http://localhost:1234/v1",
                     api_key="lm-studio",
-                    model="gemma-3n-e4b",
+                    model="google/gemma-3n-e4b",
                     temperature=0.0,
                     max_tokens=50
                 )
